@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL慢查询日志分析</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .file-input-container {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+        }
+        .file-input-container.drag-over {
+            background-color: #e9ecef;
+            border-color: #6c757d;
+        }
+        #fileInput {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .file-label:hover {
+            background-color: #0056b3;
+        }
+        #queryList {
+            margin: 20px 0;
+        }
+        .query-item {
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .query-item:hover {
+            background-color: #e9ecef;
+        }
+        .query-item .summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .metrics-card {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .query-details {
+            background-color: #e9ecef;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+        }
+        #detailView {
+            display: none;
+        }
+        .back-button {
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MySQL慢查询日志分析</h1>
+        
+        <div class="file-input-container" id="dropZone">
+            <input type="file" id="fileInput" accept=".json">
+            <label for="fileInput" class="file-label">选择慢查询日志文件</label>
+            <p>或将文件拖放到此处</p>
+        </div>
+
+        <div id="listView">
+            <h2>查询列表</h2>
+            <div id="queryList"></div>
+        </div>
+
+        <div id="detailView">
+            <button class="back-button" onclick="showListView()">返回列表</button>
+            <div class="metrics-card">
+                <h2>查询指纹信息</h2>
+                <p><strong>指纹:</strong> <code id="fingerprint"></code></p>
+                <p><strong>校验和:</strong> <span id="checksum"></span></p>
+            </div>
+
+            <div class="metrics-card">
+                <h2>查询示例</h2>
+                <div class="query-details" id="example"></div>
+            </div>
+
+            <div class="metrics-card">
+                <h2>性能指标</h2>
+                <table id="metricsTable">
+                    <thead>
+                        <tr>
+                            <th>指标</th>
+                            <th>最小值</th>
+                            <th>最大值</th>
+                            <th>平均值</th>
+                            <th>中位数</th>
+                            <th>95分位</th>
+                            <th>标准差</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalData = null;
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    globalData = JSON.parse(e.target.result);
+                    displayQueryList(globalData);
+                } catch (error) {
+                    alert('文件解析错误：' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function displayQueryList(data) {
+            const queryList = document.getElementById('queryList');
+            queryList.innerHTML = '';
+            
+            data.classes.forEach((queryClass, index) => {
+                const div = document.createElement('div');
+                div.className = 'query-item';
+                div.innerHTML = `
+                    <div class="summary">
+                        <div>
+                            <strong>查询时间:</strong> ${queryClass.example.Query_time}秒
+                            <br>
+                            <small>${queryClass.fingerprint.substring(0, 100)}...</small>
+                        </div>
+                        <div>
+                            <strong>平均执行时间:</strong> ${queryClass.metrics.Query_time.avg}秒
+                        </div>
+                    </div>
+                `;
+                div.onclick = () => showDetailView(index);
+                queryList.appendChild(div);
+            });
+        }
+
+        function showDetailView(index) {
+            const queryClass = globalData.classes[index];
+            document.getElementById('listView').style.display = 'none';
+            document.getElementById('detailView').style.display = 'block';
+            displayData(queryClass);
+        }
+
+        function showListView() {
+            document.getElementById('listView').style.display = 'block';
+            document.getElementById('detailView').style.display = 'none';
+        }
+
+        function displayData(queryClass) {
+            // 填充指纹信息
+            document.getElementById('fingerprint').textContent = queryClass.fingerprint;
+            document.getElementById('checksum').textContent = queryClass.checksum;
+            
+            // 填充示例查询
+            const example = queryClass.example;
+            document.getElementById('example').textContent = 
+                `查询时间: ${example.Query_time}
+查询语句: ${example.query}
+时间戳: ${example.ts}`;
+            
+            // 填充性能指标表格
+            const tbody = document.querySelector('#metricsTable tbody');
+            tbody.innerHTML = '';
+            const metrics = queryClass.metrics;
+            
+            for (const [metricName, values] of Object.entries(metrics)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${getMetricDisplayName(metricName)}</td>
+                    <td>${values.min}</td>
+                    <td>${values.max}</td>
+                    <td>${values.avg}</td>
+                    <td>${values.median}</td>
+                    <td>${values.pct_95}</td>
+                    <td>${values.stddev}</td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        function getMetricDisplayName(name) {
+            const displayNames = {
+                'Query_time': '查询时间',
+                'Lock_time': '锁定时间',
+                'Rows_examined': '扫描行数',
+                'Rows_sent': '返回行数',
+                'Query_length': '查询长度'
+            };
+            return displayNames[name] || name;
+        }
+
+        // 文件选择处理
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // 拖放功能
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+    </script>
+</body>
+</html> 
