@@ -122,19 +122,26 @@
             background-color: #f8f9fa;
         }
         .overview-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
             margin-bottom: 20px;
         }
-        .overview-card {
+        .overview-card.full-width {
+            width: 100%;
             background-color: #fff;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
+        .stats-summary {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
         .overview-chart {
-            height: 300px;
+            height: 400px;
         }
     </style>
 </head>
@@ -150,22 +157,20 @@
 
         <div id="listView">
             <div class="overview-container">
-                <div class="overview-card">
+                <div class="overview-card full-width">
                     <h3>查询统计</h3>
-                    <div>
-                        <p><strong>总查询数:</strong> <span id="totalQueries">0</span></p>
-                        <p><strong>平均执行时间:</strong> <span id="avgQueryTime">0</span>秒</p>
-                        <p><strong>最长执行时间:</strong> <span id="maxQueryTime">0</span>秒</p>
+                    <div class="stats-summary">
+                        <div class="stat-item">
+                            <strong>总查询数:</strong> <span id="totalQueries">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <strong>平均执行时间:</strong> <span id="avgQueryTime">0</span>秒
+                        </div>
+                        <div class="stat-item">
+                            <strong>最长执行时间:</strong> <span id="maxQueryTime">0</span>秒
+                        </div>
                     </div>
                     <div id="queryStatsChart" class="overview-chart"></div>
-                </div>
-                <div class="overview-card">
-                    <h3>执行时间分布</h3>
-                    <div id="timeDistChart" class="overview-chart"></div>
-                </div>
-                <div class="overview-card">
-                    <h3>查询类型分布</h3>
-                    <div id="queryTypeChart" class="overview-chart"></div>
                 </div>
             </div>
             <h2>查询列表</h2>
@@ -322,12 +327,8 @@
             document.getElementById('avgQueryTime').textContent = (totalTime / totalQueries).toFixed(3);
             document.getElementById('maxQueryTime').textContent = maxTime.toFixed(3);
 
-            // 创建查询统计图表
+            // 只创建查询统计图表
             createQueryStatsChart(data);
-            // 创建时间分布图表
-            createTimeDistChart(data);
-            // 创建查询类型分布图表
-            createQueryTypeChart(data);
         }
 
         function createQueryStatsChart(data) {
@@ -346,6 +347,10 @@
             queries.sort((a, b) => b.time - a.time);
 
             const option = {
+                title: {
+                    text: '查询执行时间与次数分布',
+                    left: 'center'
+                },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: {
@@ -361,29 +366,72 @@ SQL: ${query.sql.substring(0, 200)}${query.sql.length > 200 ? '...' : ''}`;
                 },
                 legend: {
                     data: ['平均执行时间', '执行次数'],
-                    top: 0
+                    top: 30
                 },
                 grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '3%',
+                    left: '5%',
+                    right: '5%',
+                    bottom: '10%',
+                    top: '15%',
                     containLabel: true
+                },
+                dataZoom: [
+                    {
+                        type: 'slider',
+                        show: true,
+                        xAxisIndex: [0],
+                        start: 0,
+                        end: 100
+                    },
+                    {
+                        type: 'inside',
+                        xAxisIndex: [0],
+                        start: 0,
+                        end: 100
+                    }
+                ],
+                toolbox: {
+                    feature: {
+                        dataZoom: {
+                            yAxisIndex: 'none'
+                        },
+                        restore: {},
+                        saveAsImage: {}
+                    }
                 },
                 xAxis: {
                     type: 'category',
                     data: queries.map(q => q.index),
-                    name: '查询序号'
+                    name: '查询序号',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    axisLabel: {
+                        interval: 'auto',
+                        rotate: 45
+                    }
                 },
                 yAxis: [
                     {
                         type: 'value',
                         name: '执行时间(秒)',
-                        position: 'left'
+                        position: 'left',
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#5470C6'
+                            }
+                        }
                     },
                     {
                         type: 'value',
                         name: '执行次数',
-                        position: 'right'
+                        position: 'right',
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#91CC75'
+                            }
+                        }
                     }
                 ],
                 series: [
@@ -391,107 +439,31 @@ SQL: ${query.sql.substring(0, 200)}${query.sql.length > 200 ? '...' : ''}`;
                         name: '平均执行时间',
                         type: 'line',
                         data: queries.map(q => q.time),
-                        smooth: true
+                        smooth: true,
+                        symbolSize: 8,
+                        itemStyle: {
+                            color: '#5470C6'
+                        }
                     },
                     {
                         name: '执行次数',
-                        type: 'line',
+                        type: 'bar',
                         yAxisIndex: 1,
                         data: queries.map(q => q.count),
-                        smooth: true
+                        itemStyle: {
+                            color: '#91CC75'
+                        }
                     }
                 ]
             };
 
             chart.setOption(option);
-        }
-
-        function createTimeDistChart(data) {
-            const chartDom = document.getElementById('timeDistChart');
-            const chart = echarts.init(chartDom);
-            
-            // 准备数据
-            const timeRanges = ['0-0.1s', '0.1-0.5s', '0.5-1s', '1-5s', '5-10s', '>10s'];
-            const counts = new Array(timeRanges.length).fill(0);
-            
-            data.classes.forEach(queryClass => {
-                const avgTime = parseFloat(queryClass.metrics.Query_time.avg);
-                const count = getQueryCount(queryClass);
-                
-                if (avgTime <= 0.1) counts[0] += count;
-                else if (avgTime <= 0.5) counts[1] += count;
-                else if (avgTime <= 1) counts[2] += count;
-                else if (avgTime <= 5) counts[3] += count;
-                else if (avgTime <= 10) counts[4] += count;
-                else counts[5] += count;
-            });
-
-            const option = {
-                tooltip: {
-                    trigger: 'item',
-                    formatter: '{b}: {c} ({d}%)'
-                },
-                series: [
-                    {
-                        type: 'pie',
-                        radius: ['40%', '70%'],
-                        data: timeRanges.map((range, index) => ({
-                            name: range,
-                            value: counts[index]
-                        }))
-                    }
-                ]
-            };
-
-            chart.setOption(option);
-        }
-
-        function createQueryTypeChart(data) {
-            const chartDom = document.getElementById('queryTypeChart');
-            const chart = echarts.init(chartDom);
-            
-            // 统计查询类型
-            const queryTypes = {};
-            data.classes.forEach(queryClass => {
-                const type = getQueryType(queryClass.fingerprint);
-                const count = getQueryCount(queryClass);
-                queryTypes[type] = (queryTypes[type] || 0) + count;
-            });
-
-            const option = {
-                tooltip: {
-                    trigger: 'item',
-                    formatter: '{b}: {c} ({d}%)'
-                },
-                series: [
-                    {
-                        type: 'pie',
-                        radius: ['40%', '70%'],
-                        data: Object.entries(queryTypes).map(([type, count]) => ({
-                            name: type,
-                            value: count
-                        }))
-                    }
-                ]
-            };
-
-            chart.setOption(option);
-        }
-
-        function getQueryType(fingerprint) {
-            if (fingerprint.startsWith('SELECT')) return 'SELECT';
-            if (fingerprint.startsWith('INSERT')) return 'INSERT';
-            if (fingerprint.startsWith('UPDATE')) return 'UPDATE';
-            if (fingerprint.startsWith('DELETE')) return 'DELETE';
-            return 'OTHER';
         }
 
         // 添加窗口调整时的图表重绘
         window.addEventListener('resize', function() {
-            const charts = ['queryStatsChart', 'timeDistChart', 'queryTypeChart'].map(id => 
-                echarts.getInstanceByDom(document.getElementById(id))
-            );
-            charts.forEach(chart => chart && chart.resize());
+            const chart = echarts.getInstanceByDom(document.getElementById('queryStatsChart'));
+            chart && chart.resize();
         });
     </script>
 </body>
