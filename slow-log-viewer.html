@@ -387,7 +387,7 @@
                         // 创建一个带有滚动条的SQL显示区域
                         const sqlDisplay = `
                             <div style="
-                                max-height: 200px;
+                                max-height: 500px;
                                 overflow-y: auto;
                                 margin: 5px 0;
                                 padding: 5px;
@@ -401,7 +401,7 @@
                             </div>`;
                         
                         return `
-                            <div style="max-width: 600px">
+                            <div style="max-width: 800px">
                                 <div style="margin-bottom: 5px">
                                     <strong>序号:</strong> ${query.index}
                                 </div>
@@ -412,8 +412,7 @@
                                     <strong>执行次数:</strong> ${query.count}次
                                 </div>
                                 <div>
-                                    <strong>SQL语句:</strong>
-                                    ${sqlDisplay}
+                                    <strong>SQL语句:</strong>${sqlDisplay}
                                 </div>
                             </div>`;
                     },
