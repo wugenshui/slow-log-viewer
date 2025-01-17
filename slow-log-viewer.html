@@ -170,6 +170,45 @@
             background-color: #f8f9fa;
             border-radius: 4px;
         }
+        .filter-container {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .filter-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .filter-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .filter-tag {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filter-tag button {
+            margin-left: 6px;
+            border: none;
+            background: none;
+            color: #666;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .filter-tag button:hover {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -203,6 +242,14 @@
                     <div id="queryStatsChart" class="overview-chart"></div>
                 </div>
             </div>
+            <div class="filter-container">
+                <h3>关键词屏蔽</h3>
+                <input type="text" 
+                    id="filterInput" 
+                    class="filter-input" 
+                    placeholder="输入需要屏蔽的关键词并按回车添加">
+                <div class="filter-tags" id="filterTags"></div>
+            </div>
             <h2>查询列表</h2>
             <div id="queryList"></div>
         </div>
@@ -211,6 +258,7 @@
     <script>
         let globalData = null;
         let myChart = null;
+        let filterKeywords = new Set(['select count', 'insert', 'update']);
 
         function handleFile(file) {
             const reader = new FileReader();
@@ -241,19 +289,36 @@
             const queryList = document.getElementById('queryList');
             queryList.innerHTML = '';
             
-            // 创建一个包含索引的数组并按平均执行时间排序
-            const sortedQueries = data.classes.map((queryClass, index) => ({
-                queryClass,
-                originalIndex: index + 1,
-                avgTime: parseFloat(queryClass.metrics.Query_time.avg)
-            }))
-            .sort((a, b) => b.avgTime - a.avgTime)
-            .map((item, newIndex) => ({
-                ...item,
-                index: newIndex + 1  // 重新编号
-            }));
+            // 修改过滤逻辑为屏蔽模式
+            const filteredQueries = data.classes
+                .filter(queryClass => {
+                    const sql = queryClass.fingerprint.toLowerCase();
+                    // 如果包含任意关键词则屏蔽
+                    return !Array.from(filterKeywords).some(keyword => sql.includes(keyword));
+                })
+                .map((queryClass, index) => ({
+                    queryClass,
+                    originalIndex: index + 1,
+                    avgTime: parseFloat(queryClass.metrics.Query_time.avg)
+                }))
+                .sort((a, b) => b.avgTime - a.avgTime)
+                .map((item, newIndex) => ({
+                    ...item,
+                    index: newIndex + 1
+                }));
             
-            sortedQueries.forEach(({ queryClass, index, originalIndex }) => {
+            // 更新统计信息以反映过滤后的结果
+            updateOverview({
+                ...data,
+                classes: filteredQueries.map(q => q.queryClass)
+            });
+            
+            if (filteredQueries.length === 0) {
+                queryList.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">没有匹配的查询</div>';
+                return;
+            }
+
+            filteredQueries.forEach(({ queryClass, index }) => {
                 const div = document.createElement('div');
                 div.className = 'query-item';
                 
@@ -618,6 +683,56 @@
         window.addEventListener('resize', function() {
             const chart = echarts.getInstanceByDom(document.getElementById('queryStatsChart'));
             chart && chart.resize();
+        });
+
+        // 添加过滤器相关函数
+        function initializeFilter() {
+            const filterInput = document.getElementById('filterInput');
+            const filterTags = document.getElementById('filterTags');
+
+            // 显示默认关键词
+            updateFilterTags();
+
+            filterInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && this.value.trim()) {
+                    const keyword = this.value.trim().toLowerCase();
+                    if (!filterKeywords.has(keyword)) {
+                        filterKeywords.add(keyword);
+                        updateFilterTags();
+                        if (globalData) {
+                            displayQueryList(globalData);
+                        }
+                    }
+                    this.value = '';
+                }
+            });
+        }
+
+        function updateFilterTags() {
+            const filterTags = document.getElementById('filterTags');
+            filterTags.innerHTML = '';
+            filterKeywords.forEach(keyword => {
+                const tag = document.createElement('span');
+                tag.className = 'filter-tag';
+                tag.innerHTML = `
+                    ${keyword}
+                    <button onclick="removeKeyword('${keyword}')">&times;</button>
+                `;
+                filterTags.appendChild(tag);
+            });
+        }
+
+        function removeKeyword(keyword) {
+            filterKeywords.delete(keyword);
+            updateFilterTags();
+            if (globalData) {
+                displayQueryList(globalData);
+            }
+        }
+
+        // 在页面加载时初始化过滤器
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFilter();
         });
     </script>
 </body>
