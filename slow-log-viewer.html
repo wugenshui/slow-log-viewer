@@ -258,7 +258,7 @@
     <script>
         let globalData = null;
         let myChart = null;
-        let filterKeywords = new Set(['select count', 'insert', 'update']);
+        let filterKeywords = new Set(['select count', 'insert', 'update', 'commit']);
 
         function handleFile(file) {
             const reader = new FileReader();
@@ -579,21 +579,6 @@
                     top: '15%',
                     containLabel: true
                 },
-                dataZoom: [
-                    {
-                        type: 'slider',
-                        show: true,
-                        xAxisIndex: [0],
-                        start: 0,
-                        end: 100
-                    },
-                    {
-                        type: 'inside',
-                        xAxisIndex: [0],
-                        start: 0,
-                        end: 100
-                    }
-                ],
                 xAxis: {
                     type: 'category',
                     data: queries.map(q => q.index),
