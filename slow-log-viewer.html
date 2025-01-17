@@ -241,7 +241,19 @@
             const queryList = document.getElementById('queryList');
             queryList.innerHTML = '';
             
-            data.classes.forEach((queryClass, index) => {
+            // 创建一个包含索引的数组并按平均执行时间排序
+            const sortedQueries = data.classes.map((queryClass, index) => ({
+                queryClass,
+                originalIndex: index + 1,
+                avgTime: parseFloat(queryClass.metrics.Query_time.avg)
+            }))
+            .sort((a, b) => b.avgTime - a.avgTime)
+            .map((item, newIndex) => ({
+                ...item,
+                index: newIndex + 1  // 重新编号
+            }));
+            
+            sortedQueries.forEach(({ queryClass, index, originalIndex }) => {
                 const div = document.createElement('div');
                 div.className = 'query-item';
                 
@@ -251,9 +263,7 @@
                 div.innerHTML = `
                     <div class="summary">
                         <div class="query-info">
-                            <strong>序号:</strong> ${index + 1}
-                            <br>
-                            <strong>查询时间:</strong> ${queryClass.example.Query_time}秒
+                            <strong>序号:</strong> ${index}
                             <br>
                             <small>${queryClass.fingerprint.substring(0, 100)}...</small>
                         </div>
@@ -411,19 +421,18 @@
                 });
             };
 
-            // 准备数据
+            // 准备数据并排序
             const queries = data.classes.map((queryClass, index) => ({
-                index: index + 1,
+                originalIndex: index + 1,
                 time: parseFloat(queryClass.metrics.Query_time.avg),
                 count: getQueryCount(queryClass),
-                sql: queryClass.fingerprint,
-                timeRange: queryClass.ts_min && queryClass.ts_max ? 
-                    `${formatTime(queryClass.ts_min)} 至 ${formatTime(queryClass.ts_max)}` : 
-                    '时间未知'
+                sql: queryClass.fingerprint
+            }))
+            .sort((a, b) => b.time - a.time)
+            .map((item, newIndex) => ({
+                ...item,
+                index: newIndex + 1  // 重新编号
             }));
-
-            // 按执行时间排序，但保留原始序号
-            queries.sort((a, b) => b.time - a.time);
 
             const option = {
                 title: {
