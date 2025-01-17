@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MySQL慢查询日志分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -62,7 +63,36 @@
         .query-item .summary {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
+        }
+        .query-details-preview {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+        .query-details-preview.expanded {
+            display: block;
+        }
+        .sql-preview {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .metrics-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .metric-item {
+            background-color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .metrics-card {
             background-color: #f8f9fa;
@@ -106,6 +136,37 @@
         .back-button:hover {
             background-color: #5a6268;
         }
+        .chart-container {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            height: 400px;
+        }
+        .mini-chart {
+            width: 300px;
+            height: 100px;
+            flex-shrink: 0;
+        }
+        .query-info {
+            flex-grow: 1;
+        }
+        .overview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .overview-card {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .overview-chart {
+            height: 300px;
+        }
     </style>
 </head>
 <body>
@@ -119,6 +180,25 @@
         </div>
 
         <div id="listView">
+            <div class="overview-container">
+                <div class="overview-card">
+                    <h3>查询统计</h3>
+                    <div>
+                        <p><strong>总查询数:</strong> <span id="totalQueries">0</span></p>
+                        <p><strong>平均执行时间:</strong> <span id="avgQueryTime">0</span>秒</p>
+                        <p><strong>最长执行时间:</strong> <span id="maxQueryTime">0</span>秒</p>
+                    </div>
+                    <div id="queryStatsChart" class="overview-chart"></div>
+                </div>
+                <div class="overview-card">
+                    <h3>执行时间分布</h3>
+                    <div id="timeDistChart" class="overview-chart"></div>
+                </div>
+                <div class="overview-card">
+                    <h3>查询类型分布</h3>
+                    <div id="queryTypeChart" class="overview-chart"></div>
+                </div>
+            </div>
             <h2>查询列表</h2>
             <div id="queryList"></div>
         </div>
@@ -153,23 +233,40 @@
                     <tbody></tbody>
                 </table>
             </div>
+
+            <div class="metrics-card">
+                <h2>性能分析图表</h2>
+                <div class="chart-container">
+                    <canvas id="queryChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         let globalData = null;
+        let myChart = null;
 
         function handleFile(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    globalData = JSON.parse(e.target.result);
+                    const text = e.target.result;
+                    // 尝试处理可能的编码问题
+                    const decodedText = decodeURIComponent(escape(text));
+                    globalData = JSON.parse(decodedText);
                     displayQueryList(globalData);
                 } catch (error) {
-                    alert('文件解析错误：' + error.message);
+                    try {
+                        // 如果上面的解码失败，直接尝试解析原始文本
+                        globalData = JSON.parse(text);
+                        displayQueryList(globalData);
+                    } catch (e) {
+                        alert('文件解析错误：' + e.message);
+                    }
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(file, 'UTF-8'); // 明确指定UTF-8编码
         }
 
         function displayQueryList(data) {
@@ -179,21 +276,74 @@
             data.classes.forEach((queryClass, index) => {
                 const div = document.createElement('div');
                 div.className = 'query-item';
+                
+                const executionCount = getQueryCount(queryClass);
+                const metrics = queryClass.metrics.Query_time;
+                
                 div.innerHTML = `
                     <div class="summary">
-                        <div>
+                        <div class="query-info">
                             <strong>查询时间:</strong> ${queryClass.example.Query_time}秒
                             <br>
                             <small>${queryClass.fingerprint.substring(0, 100)}...</small>
                         </div>
                         <div>
-                            <strong>平均执行时间:</strong> ${queryClass.metrics.Query_time.avg}秒
+                            <strong>执行次数:</strong> ${executionCount}次
+                            <br>
+                            <strong>平均执行时间:</strong> ${metrics.avg}秒
+                        </div>
+                    </div>
+                    <div class="query-details-preview">
+                        <h4>SQL语句</h4>
+                        <div class="sql-preview">${queryClass.example.query}</div>
+                        
+                        <h4>性能指标</h4>
+                        <div class="metrics-preview">
+                            <div class="metric-item">
+                                <strong>最小执行时间:</strong> ${metrics.min}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>最大执行时间:</strong> ${metrics.max}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>平均执行时间:</strong> ${metrics.avg}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>中位数时间:</strong> ${metrics.median}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>95分位时间:</strong> ${metrics.pct_95}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>标准差:</strong> ${metrics.stddev}秒
+                            </div>
+                            <div class="metric-item">
+                                <strong>总执行次数:</strong> ${executionCount}次
+                            </div>
                         </div>
                     </div>
                 `;
-                div.onclick = () => showDetailView(index);
+
+                // 点击展开/收起详情
+                div.querySelector('.summary').addEventListener('click', function(e) {
+                    const details = div.querySelector('.query-details-preview');
+                    details.classList.toggle('expanded');
+                    e.stopPropagation(); // 防止触发父元素的点击事件
+                });
+
+                // 双击进入详情页
+                div.addEventListener('dblclick', () => showDetailView(index));
+                
                 queryList.appendChild(div);
             });
+        }
+
+        function getQueryCount(queryClass) {
+            // 从直方图数据中计算总次数
+            if (queryClass.histograms && queryClass.histograms.Query_time) {
+                return queryClass.histograms.Query_time.reduce((a, b) => a + b, 0);
+            }
+            return 'N/A';
         }
 
         function showDetailView(index) {
@@ -212,6 +362,12 @@
             // 填充指纹信息
             document.getElementById('fingerprint').textContent = queryClass.fingerprint;
             document.getElementById('checksum').textContent = queryClass.checksum;
+            
+            // 添加执行次数显示
+            const executionCount = getQueryCount(queryClass);
+            document.querySelector('.metrics-card').innerHTML += `
+                <p><strong>总执行次数:</strong> ${executionCount}次</p>
+            `;
             
             // 填充示例查询
             const example = queryClass.example;
@@ -238,6 +394,9 @@
                 `;
                 tbody.appendChild(row);
             }
+
+            // 创建图表
+            createChart(queryClass);
         }
 
         function getMetricDisplayName(name) {
@@ -249,6 +408,146 @@
                 'Query_length': '查询长度'
             };
             return displayNames[name] || name;
+        }
+
+        function createChart(queryClass) {
+            const chartDom = document.getElementById('queryChart');
+            if (myChart) {
+                myChart.dispose();
+            }
+            myChart = echarts.init(chartDom);
+            
+            // 准备数据
+            const histogramData = queryClass.histograms.Query_time;
+            const labels = [];
+            const microseconds = [0.000001, 0.000010, 0.000100, 0.001000, 0.010000, 0.100000, 1.000000, 10.000000, 100.000000, 1000.000000];
+            
+            for (let i = 0; i < histogramData.length; i++) {
+                if (i === histogramData.length - 1) {
+                    labels.push(`>${microseconds[i].toFixed(6)}s`);
+                } else {
+                    labels.push(`${microseconds[i].toFixed(6)}s-${microseconds[i+1].toFixed(6)}s`);
+                }
+            }
+
+            // 计算累计百分比
+            const total = histogramData.reduce((a, b) => a + b, 0);
+            let accumulator = 0;
+            const percentages = histogramData.map(count => {
+                accumulator += (count / total) * 100;
+                return accumulator.toFixed(2);
+            });
+
+            const option = {
+                title: {
+                    text: '查询执行时间分布',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    },
+                    formatter: function(params) {
+                        let result = `${params[0].name}<br/>`;
+                        params.forEach(param => {
+                            const value = param.seriesName === '执行次数' 
+                                ? param.value + '次'
+                                : param.value + '%';
+                            result += `${param.marker} ${param.seriesName}: ${value}<br/>`;
+                        });
+                        return result;
+                    }
+                },
+                toolbox: {
+                    feature: {
+                        dataZoom: {
+                            yAxisIndex: 'none'
+                        },
+                        restore: {},
+                        saveAsImage: {}
+                    }
+                },
+                legend: {
+                    data: ['执行次数', '累计百分比'],
+                    top: 25
+                },
+                xAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 45
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '执行次数',
+                        position: 'left',
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#5470C6'
+                            }
+                        },
+                        axisLabel: {
+                            formatter: '{value}次'
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: '累计百分比',
+                        position: 'right',
+                        max: 100,
+                        axisLine: {
+                            show: true,
+                            lineStyle: {
+                                color: '#EE6666'
+                            }
+                        },
+                        axisLabel: {
+                            formatter: '{value}%'
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: '执行次数',
+                        type: 'bar',
+                        data: histogramData,
+                        itemStyle: {
+                            color: '#5470C6'
+                        }
+                    },
+                    {
+                        name: '累计百分比',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: percentages,
+                        itemStyle: {
+                            color: '#EE6666'
+                        },
+                        lineStyle: {
+                            width: 2
+                        },
+                        symbol: 'circle',
+                        symbolSize: 8
+                    }
+                ],
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%'
+                }
+            };
+
+            myChart.setOption(option);
+
+            // 响应窗口大小变化
+            window.addEventListener('resize', function() {
+                myChart && myChart.resize();
+            });
         }
 
         // 文件选择处理
