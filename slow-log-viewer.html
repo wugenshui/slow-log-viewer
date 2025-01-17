@@ -130,6 +130,7 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-sizing: border-box;
         }
         .stats-summary {
             display: flex;
@@ -383,9 +384,9 @@
                 }).replace(/\//g, '-');
             };
 
-            document.getElementById('timeRange').textContent = 
+            document.getElementById('timeRange').innerHTML = 
                 timeRange.min && timeRange.max ? 
-                `${formatTime(timeRange.min)} 至 ${formatTime(timeRange.max)}` :
+                `${formatTime(timeRange.min)} <br/> ${formatTime(timeRange.max)}` :
                 '-';
 
             // 只创建查询统计图表
