@@ -121,37 +121,6 @@
         th {
             background-color: #f8f9fa;
         }
-        #detailView {
-            display: none;
-        }
-        .back-button {
-            margin-bottom: 20px;
-            padding: 8px 16px;
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .back-button:hover {
-            background-color: #5a6268;
-        }
-        .chart-container {
-            background-color: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: 1px solid #dee2e6;
-            height: 400px;
-        }
-        .mini-chart {
-            width: 300px;
-            height: 100px;
-            flex-shrink: 0;
-        }
-        .query-info {
-            flex-grow: 1;
-        }
         .overview-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -202,45 +171,6 @@
             <h2>查询列表</h2>
             <div id="queryList"></div>
         </div>
-
-        <div id="detailView">
-            <button class="back-button" onclick="showListView()">返回列表</button>
-            <div class="metrics-card">
-                <h2>查询指纹信息</h2>
-                <p><strong>指纹:</strong> <code id="fingerprint"></code></p>
-                <p><strong>校验和:</strong> <span id="checksum"></span></p>
-            </div>
-
-            <div class="metrics-card">
-                <h2>查询示例</h2>
-                <div class="query-details" id="example"></div>
-            </div>
-
-            <div class="metrics-card">
-                <h2>性能指标</h2>
-                <table id="metricsTable">
-                    <thead>
-                        <tr>
-                            <th>指标</th>
-                            <th>最小值</th>
-                            <th>最大值</th>
-                            <th>平均值</th>
-                            <th>中位数</th>
-                            <th>95分位</th>
-                            <th>标准差</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-
-            <div class="metrics-card">
-                <h2>性能分析图表</h2>
-                <div class="chart-container">
-                    <canvas id="queryChart"></canvas>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -270,6 +200,9 @@
         }
 
         function displayQueryList(data) {
+            // 更新总览
+            updateOverview(data);
+            
             const queryList = document.getElementById('queryList');
             queryList.innerHTML = '';
             
@@ -328,11 +261,7 @@
                 div.querySelector('.summary').addEventListener('click', function(e) {
                     const details = div.querySelector('.query-details-preview');
                     details.classList.toggle('expanded');
-                    e.stopPropagation(); // 防止触发父元素的点击事件
                 });
-
-                // 双击进入详情页
-                div.addEventListener('dblclick', () => showDetailView(index));
                 
                 queryList.appendChild(div);
             });
@@ -344,210 +273,6 @@
                 return queryClass.histograms.Query_time.reduce((a, b) => a + b, 0);
             }
             return 'N/A';
-        }
-
-        function showDetailView(index) {
-            const queryClass = globalData.classes[index];
-            document.getElementById('listView').style.display = 'none';
-            document.getElementById('detailView').style.display = 'block';
-            displayData(queryClass);
-        }
-
-        function showListView() {
-            document.getElementById('listView').style.display = 'block';
-            document.getElementById('detailView').style.display = 'none';
-        }
-
-        function displayData(queryClass) {
-            // 填充指纹信息
-            document.getElementById('fingerprint').textContent = queryClass.fingerprint;
-            document.getElementById('checksum').textContent = queryClass.checksum;
-            
-            // 添加执行次数显示
-            const executionCount = getQueryCount(queryClass);
-            document.querySelector('.metrics-card').innerHTML += `
-                <p><strong>总执行次数:</strong> ${executionCount}次</p>
-            `;
-            
-            // 填充示例查询
-            const example = queryClass.example;
-            document.getElementById('example').textContent = 
-                `查询时间: ${example.Query_time}
-查询语句: ${example.query}
-时间戳: ${example.ts}`;
-            
-            // 填充性能指标表格
-            const tbody = document.querySelector('#metricsTable tbody');
-            tbody.innerHTML = '';
-            const metrics = queryClass.metrics;
-            
-            for (const [metricName, values] of Object.entries(metrics)) {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${getMetricDisplayName(metricName)}</td>
-                    <td>${values.min}</td>
-                    <td>${values.max}</td>
-                    <td>${values.avg}</td>
-                    <td>${values.median}</td>
-                    <td>${values.pct_95}</td>
-                    <td>${values.stddev}</td>
-                `;
-                tbody.appendChild(row);
-            }
-
-            // 创建图表
-            createChart(queryClass);
-        }
-
-        function getMetricDisplayName(name) {
-            const displayNames = {
-                'Query_time': '查询时间',
-                'Lock_time': '锁定时间',
-                'Rows_examined': '扫描行数',
-                'Rows_sent': '返回行数',
-                'Query_length': '查询长度'
-            };
-            return displayNames[name] || name;
-        }
-
-        function createChart(queryClass) {
-            const chartDom = document.getElementById('queryChart');
-            if (myChart) {
-                myChart.dispose();
-            }
-            myChart = echarts.init(chartDom);
-            
-            // 准备数据
-            const histogramData = queryClass.histograms.Query_time;
-            const labels = [];
-            const microseconds = [0.000001, 0.000010, 0.000100, 0.001000, 0.010000, 0.100000, 1.000000, 10.000000, 100.000000, 1000.000000];
-            
-            for (let i = 0; i < histogramData.length; i++) {
-                if (i === histogramData.length - 1) {
-                    labels.push(`>${microseconds[i].toFixed(6)}s`);
-                } else {
-                    labels.push(`${microseconds[i].toFixed(6)}s-${microseconds[i+1].toFixed(6)}s`);
-                }
-            }
-
-            // 计算累计百分比
-            const total = histogramData.reduce((a, b) => a + b, 0);
-            let accumulator = 0;
-            const percentages = histogramData.map(count => {
-                accumulator += (count / total) * 100;
-                return accumulator.toFixed(2);
-            });
-
-            const option = {
-                title: {
-                    text: '查询执行时间分布',
-                    left: 'center'
-                },
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: {
-                        type: 'cross'
-                    },
-                    formatter: function(params) {
-                        let result = `${params[0].name}<br/>`;
-                        params.forEach(param => {
-                            const value = param.seriesName === '执行次数' 
-                                ? param.value + '次'
-                                : param.value + '%';
-                            result += `${param.marker} ${param.seriesName}: ${value}<br/>`;
-                        });
-                        return result;
-                    }
-                },
-                toolbox: {
-                    feature: {
-                        dataZoom: {
-                            yAxisIndex: 'none'
-                        },
-                        restore: {},
-                        saveAsImage: {}
-                    }
-                },
-                legend: {
-                    data: ['执行次数', '累计百分比'],
-                    top: 25
-                },
-                xAxis: {
-                    type: 'category',
-                    data: labels,
-                    axisLabel: {
-                        interval: 0,
-                        rotate: 45
-                    }
-                },
-                yAxis: [
-                    {
-                        type: 'value',
-                        name: '执行次数',
-                        position: 'left',
-                        axisLine: {
-                            show: true,
-                            lineStyle: {
-                                color: '#5470C6'
-                            }
-                        },
-                        axisLabel: {
-                            formatter: '{value}次'
-                        }
-                    },
-                    {
-                        type: 'value',
-                        name: '累计百分比',
-                        position: 'right',
-                        max: 100,
-                        axisLine: {
-                            show: true,
-                            lineStyle: {
-                                color: '#EE6666'
-                            }
-                        },
-                        axisLabel: {
-                            formatter: '{value}%'
-                        }
-                    }
-                ],
-                series: [
-                    {
-                        name: '执行次数',
-                        type: 'bar',
-                        data: histogramData,
-                        itemStyle: {
-                            color: '#5470C6'
-                        }
-                    },
-                    {
-                        name: '累计百分比',
-                        type: 'line',
-                        yAxisIndex: 1,
-                        data: percentages,
-                        itemStyle: {
-                            color: '#EE6666'
-                        },
-                        lineStyle: {
-                            width: 2
-                        },
-                        symbol: 'circle',
-                        symbolSize: 8
-                    }
-                ],
-                grid: {
-                    left: '10%',
-                    right: '10%',
-                    bottom: '15%'
-                }
-            };
-
-            myChart.setOption(option);
-
-            // 响应窗口大小变化
-            window.addEventListener('resize', function() {
-                myChart && myChart.resize();
-            });
         }
 
         // 文件选择处理
@@ -578,6 +303,195 @@
             if (file) {
                 handleFile(file);
             }
+        });
+
+        function updateOverview(data) {
+            // 更新基础统计数据
+            let totalQueries = 0;
+            let totalTime = 0;
+            let maxTime = 0;
+
+            data.classes.forEach(queryClass => {
+                const count = getQueryCount(queryClass);
+                totalQueries += count;
+                totalTime += count * parseFloat(queryClass.metrics.Query_time.avg);
+                maxTime = Math.max(maxTime, parseFloat(queryClass.metrics.Query_time.max));
+            });
+
+            document.getElementById('totalQueries').textContent = totalQueries.toLocaleString();
+            document.getElementById('avgQueryTime').textContent = (totalTime / totalQueries).toFixed(3);
+            document.getElementById('maxQueryTime').textContent = maxTime.toFixed(3);
+
+            // 创建查询统计图表
+            createQueryStatsChart(data);
+            // 创建时间分布图表
+            createTimeDistChart(data);
+            // 创建查询类型分布图表
+            createQueryTypeChart(data);
+        }
+
+        function createQueryStatsChart(data) {
+            const chartDom = document.getElementById('queryStatsChart');
+            const chart = echarts.init(chartDom);
+            
+            // 准备数据
+            const queries = data.classes.map((queryClass, index) => ({
+                index: index + 1,
+                time: parseFloat(queryClass.metrics.Query_time.avg),
+                count: getQueryCount(queryClass),
+                sql: queryClass.fingerprint
+            }));
+
+            // 按执行时间排序
+            queries.sort((a, b) => b.time - a.time);
+
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    },
+                    formatter: function(params) {
+                        const query = queries[params[0].dataIndex];
+                        return `序号: ${query.index}<br/>
+执行时间: ${query.time.toFixed(3)}秒<br/>
+执行次数: ${query.count}次<br/>
+SQL: ${query.sql.substring(0, 200)}${query.sql.length > 200 ? '...' : ''}`;
+                    }
+                },
+                legend: {
+                    data: ['平均执行时间', '执行次数'],
+                    top: 0
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: queries.map(q => q.index),
+                    name: '查询序号'
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: '执行时间(秒)',
+                        position: 'left'
+                    },
+                    {
+                        type: 'value',
+                        name: '执行次数',
+                        position: 'right'
+                    }
+                ],
+                series: [
+                    {
+                        name: '平均执行时间',
+                        type: 'line',
+                        data: queries.map(q => q.time),
+                        smooth: true
+                    },
+                    {
+                        name: '执行次数',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: queries.map(q => q.count),
+                        smooth: true
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        function createTimeDistChart(data) {
+            const chartDom = document.getElementById('timeDistChart');
+            const chart = echarts.init(chartDom);
+            
+            // 准备数据
+            const timeRanges = ['0-0.1s', '0.1-0.5s', '0.5-1s', '1-5s', '5-10s', '>10s'];
+            const counts = new Array(timeRanges.length).fill(0);
+            
+            data.classes.forEach(queryClass => {
+                const avgTime = parseFloat(queryClass.metrics.Query_time.avg);
+                const count = getQueryCount(queryClass);
+                
+                if (avgTime <= 0.1) counts[0] += count;
+                else if (avgTime <= 0.5) counts[1] += count;
+                else if (avgTime <= 1) counts[2] += count;
+                else if (avgTime <= 5) counts[3] += count;
+                else if (avgTime <= 10) counts[4] += count;
+                else counts[5] += count;
+            });
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: timeRanges.map((range, index) => ({
+                            name: range,
+                            value: counts[index]
+                        }))
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        function createQueryTypeChart(data) {
+            const chartDom = document.getElementById('queryTypeChart');
+            const chart = echarts.init(chartDom);
+            
+            // 统计查询类型
+            const queryTypes = {};
+            data.classes.forEach(queryClass => {
+                const type = getQueryType(queryClass.fingerprint);
+                const count = getQueryCount(queryClass);
+                queryTypes[type] = (queryTypes[type] || 0) + count;
+            });
+
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{b}: {c} ({d}%)'
+                },
+                series: [
+                    {
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        data: Object.entries(queryTypes).map(([type, count]) => ({
+                            name: type,
+                            value: count
+                        }))
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+        }
+
+        function getQueryType(fingerprint) {
+            if (fingerprint.startsWith('SELECT')) return 'SELECT';
+            if (fingerprint.startsWith('INSERT')) return 'INSERT';
+            if (fingerprint.startsWith('UPDATE')) return 'UPDATE';
+            if (fingerprint.startsWith('DELETE')) return 'DELETE';
+            return 'OTHER';
+        }
+
+        // 添加窗口调整时的图表重绘
+        window.addEventListener('resize', function() {
+            const charts = ['queryStatsChart', 'timeDistChart', 'queryTypeChart'].map(id => 
+                echarts.getInstanceByDom(document.getElementById(id))
+            );
+            charts.forEach(chart => chart && chart.resize());
         });
     </script>
 </body>
