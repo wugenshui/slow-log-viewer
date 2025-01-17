@@ -221,6 +221,8 @@
                 div.innerHTML = `
                     <div class="summary">
                         <div class="query-info">
+                            <strong>序号:</strong> ${index + 1}
+                            <br>
                             <strong>查询时间:</strong> ${queryClass.example.Query_time}秒
                             <br>
                             <small>${queryClass.fingerprint.substring(0, 100)}...</small>
@@ -343,8 +345,8 @@
                 sql: queryClass.fingerprint
             }));
 
-            // 按执行时间排序
-            queries.sort((a, b) => b.time - a.time);
+            // 不再按执行时间排序，保持原始顺序
+            // queries.sort((a, b) => b.time - a.time); // 删除这行
 
             const option = {
                 title: {
@@ -356,13 +358,66 @@
                     axisPointer: {
                         type: 'cross'
                     },
+                    position: function (point, params, dom, rect, size) {
+                        // 计算提示框位置，防止超出边界
+                        const [x, y] = point;
+                        const tooltipWidth = dom.offsetWidth;
+                        const tooltipHeight = dom.offsetHeight;
+                        const chartWidth = size.viewSize[0];
+                        const chartHeight = size.viewSize[1];
+                        
+                        // 默认显示在鼠标右下方
+                        let posX = x + 10;
+                        let posY = y + 10;
+                        
+                        // 如果右边超出边界，则显示在左边
+                        if (posX + tooltipWidth > chartWidth) {
+                            posX = x - tooltipWidth - 10;
+                        }
+                        
+                        // 如果下边超出边界，则显示在上边
+                        if (posY + tooltipHeight > chartHeight) {
+                            posY = y - tooltipHeight - 10;
+                        }
+                        
+                        return [posX, posY];
+                    },
                     formatter: function(params) {
                         const query = queries[params[0].dataIndex];
-                        return `序号: ${query.index}<br/>
-执行时间: ${query.time.toFixed(3)}秒<br/>
-执行次数: ${query.count}次<br/>
-SQL: ${query.sql.substring(0, 200)}${query.sql.length > 200 ? '...' : ''}`;
-                    }
+                        // 创建一个带有滚动条的SQL显示区域
+                        const sqlDisplay = `
+                            <div style="
+                                max-height: 200px;
+                                overflow-y: auto;
+                                margin: 5px 0;
+                                padding: 5px;
+                                background-color: rgba(0,0,0,0.05);
+                                border-radius: 4px;
+                                font-family: monospace;
+                                white-space: pre-wrap;
+                                word-break: break-all;
+                            ">
+                                ${query.sql}
+                            </div>`;
+                        
+                        return `
+                            <div style="max-width: 600px">
+                                <div style="margin-bottom: 5px">
+                                    <strong>序号:</strong> ${query.index}
+                                </div>
+                                <div style="margin-bottom: 5px">
+                                    <strong>执行时间:</strong> ${query.time.toFixed(3)}秒
+                                </div>
+                                <div style="margin-bottom: 5px">
+                                    <strong>执行次数:</strong> ${query.count}次
+                                </div>
+                                <div>
+                                    <strong>SQL语句:</strong>
+                                    ${sqlDisplay}
+                                </div>
+                            </div>`;
+                    },
+                    extraCssText: 'max-width: 600px; white-space: normal;'
                 },
                 legend: {
                     data: ['平均执行时间', '执行次数'],
@@ -458,6 +513,21 @@ SQL: ${query.sql.substring(0, 200)}${query.sql.length > 200 ? '...' : ''}`;
             };
 
             chart.setOption(option);
+
+            // 添加点击事件，点击时在列表中展开对应的查询
+            chart.on('click', function(params) {
+                const query = queries[params.dataIndex];
+                // 找到对应的列表项并展开
+                const queryItems = document.querySelectorAll('.query-item');
+                const targetItem = queryItems[query.index - 1];
+                if (targetItem) {
+                    // 滚动到对应位置
+                    targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // 展开详情
+                    const details = targetItem.querySelector('.query-details-preview');
+                    details.classList.add('expanded');
+                }
+            });
         }
 
         // 添加窗口调整时的图表重绘
