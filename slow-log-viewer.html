@@ -345,8 +345,8 @@
                 sql: queryClass.fingerprint
             }));
 
-            // 不再按执行时间排序，保持原始顺序
-            // queries.sort((a, b) => b.time - a.time); // 删除这行
+            // 按执行时间排序，但保留原始序号
+            queries.sort((a, b) => b.time - a.time);
 
             const option = {
                 title: {
