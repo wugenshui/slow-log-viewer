@@ -325,6 +325,21 @@
                 const executionCount = getQueryCount(queryClass);
                 const metrics = queryClass.metrics.Query_time;
                 
+                // 格式化时间显示
+                const formatTime = (timeStr) => {
+                    if (!timeStr) return '-';
+                    const date = new Date(timeStr);
+                    return date.toLocaleString('zh-CN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false
+                    }).replace(/\//g, '-');
+                };
+
                 div.innerHTML = `
                     <div class="summary">
                         <div class="query-info">
@@ -336,6 +351,12 @@
                             <strong>执行次数:</strong> ${executionCount}次
                             <br>
                             <strong>平均执行时间:</strong> ${metrics.avg}秒
+                            <br>
+                            <strong>最大执行时间:</strong> ${metrics.max}秒
+                            <br>
+                            <strong>首次出现:</strong> ${formatTime(queryClass.ts_min)}
+                            <br>
+                            <strong>最后出现:</strong> ${formatTime(queryClass.ts_max)}
                         </div>
                     </div>
                     <div class="query-details-preview">
