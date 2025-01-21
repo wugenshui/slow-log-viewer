@@ -379,10 +379,19 @@
                     </div>
                 `;
 
-                // 点击展开/收起详情
-                div.querySelector('.summary').addEventListener('click', function(e) {
+                // 点击整个query-item区域展开/收起详情
+                div.addEventListener('click', function(e) {
+                    // 如果点击的是详情内容区域或其子元素，不处理
+                    if (e.target.closest('.query-details-preview')) {
+                        return;
+                    }
                     const details = div.querySelector('.query-details-preview');
                     details.classList.toggle('expanded');
+                });
+
+                // 双击详情内容区域折叠
+                div.querySelector('.query-details-preview').addEventListener('dblclick', function(e) {
+                    this.classList.remove('expanded');
                 });
                 
                 queryList.appendChild(div);
