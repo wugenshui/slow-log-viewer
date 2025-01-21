@@ -345,18 +345,17 @@
                         <div class="query-info">
                             <strong>序号:</strong> ${index}
                             <br>
+                            <strong>出现时间:</strong> ${formatTime(queryClass.ts_min)} - ${formatTime(queryClass.ts_max)}
+                            <br>
                             <small>${queryClass.fingerprint.substring(0, 100)}...</small>
                         </div>
                         <div>
-                            <strong>执行次数:</strong> ${executionCount}次
+                            <strong>执行次数:</strong> ${executionCount} 次
                             <br>
-                            <strong>平均执行时间:</strong> ${metrics.avg}秒
+                            <strong>平均执行时间:</strong> ${parseFloat(metrics.avg).toFixed(2)} 秒
                             <br>
-                            <strong>最大执行时间:</strong> ${metrics.max}秒
+                            <strong>最大执行时间:</strong> ${parseFloat(metrics.max).toFixed(2)} 秒
                             <br>
-                            <strong>首次出现:</strong> ${formatTime(queryClass.ts_min)}
-                            <br>
-                            <strong>最后出现:</strong> ${formatTime(queryClass.ts_max)}
                         </div>
                     </div>
                     <div class="query-details-preview">
@@ -366,22 +365,22 @@
                         <h4>性能指标</h4>
                         <div class="metrics-preview">
                             <div class="metric-item">
-                                <strong>最小执行时间:</strong> ${metrics.min}秒
+                                <strong>最小执行时间:</strong> ${parseFloat(metrics.min).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
-                                <strong>最大执行时间:</strong> ${metrics.max}秒
+                                <strong>最大执行时间:</strong> ${parseFloat(metrics.max).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
-                                <strong>平均执行时间:</strong> ${metrics.avg}秒
+                                <strong>平均执行时间:</strong> ${parseFloat(metrics.avg).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
-                                <strong>中位数时间:</strong> ${metrics.median}秒
+                                <strong>中位数时间:</strong> ${parseFloat(metrics.median).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
-                                <strong>95分位时间:</strong> ${metrics.pct_95}秒
+                                <strong>95分位时间:</strong> ${parseFloat(metrics.pct_95).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
-                                <strong>标准差:</strong> ${metrics.stddev}秒
+                                <strong>标准差:</strong> ${parseFloat(metrics.stddev).toFixed(2)}秒
                             </div>
                             <div class="metric-item">
                                 <strong>总执行次数:</strong> ${executionCount}次
