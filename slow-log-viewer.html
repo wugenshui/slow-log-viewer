@@ -164,6 +164,16 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             box-sizing: border-box;
         }
+        .overview-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .file-name {
+            color: #666;
+            font-size: 0.9em;
+        }
         .stats-summary {
             display: flex;
             justify-content: space-between;
@@ -256,7 +266,10 @@
         <div id="listView">
             <div class="overview-container">
                 <div class="overview-card full-width">
-                    <h3>查询统计</h3>
+                    <div class="overview-title">
+                        <h3>查询统计</h3>
+                        <span class="file-name" id="fileName"></span>
+                    </div>
                     <div class="stats-summary">
                         <div class="stat-item">
                             <strong>总查询数:</strong> <span id="totalQueries">0</span>
@@ -300,11 +313,15 @@
                     // 尝试处理可能的编码问题
                     const decodedText = decodeURIComponent(escape(text));
                     globalData = JSON.parse(decodedText);
+                    // 显示文件名
+                    document.getElementById('fileName').textContent = `文件名：${file.name}`;
                     displayQueryList(globalData);
                 } catch (error) {
                     try {
                         // 如果上面的解码失败，直接尝试解析原始文本
                         globalData = JSON.parse(text);
+                        // 显示文件名
+                        document.getElementById('fileName').textContent = `文件名：${file.name}`;
                         displayQueryList(globalData);
                     } catch (e) {
                         alert('文件解析错误：' + e.message);
