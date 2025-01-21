@@ -55,15 +55,39 @@
             border: 1px solid #dee2e6;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s ease;
         }
         .query-item:hover {
-            background-color: #e9ecef;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .query-item .summary {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
+            gap: 15px;
+        }
+        .query-info {
+            flex: 2;
+            line-height: 1.5;
+        }
+        .query-info small {
+            display: block;
+            margin-top: 8px;
+            color: #666;
+            font-family: monospace;
+            background: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .query-info strong {
+            color: #2c3e50;
+        }
+        .query-metrics {
+            flex: 1;
+            text-align: right;
+            line-height: 1.8;
         }
         .query-details-preview {
             display: none;
@@ -74,26 +98,33 @@
         .query-details-preview.expanded {
             display: block;
         }
-        .sql-preview {
-            background-color: #e9ecef;
-            padding: 10px;
-            border-radius: 4px;
-            margin: 10px 0;
-            white-space: pre-wrap;
-            font-family: monospace;
+        .query-details-preview h4 {
+            color: #2c3e50;
+            margin: 15px 0 10px;
         }
         .metrics-preview {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
             margin-top: 10px;
         }
         .metric-item {
             background-color: #fff;
-            padding: 8px;
+            padding: 12px;
             border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid #dee2e6;
             overflow: auto;
+        }
+        .metric-item.raw-data-preview {
+            background-color: #e9ecef;
+        }
+        .metric-item pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
         }
         .metrics-card {
             background-color: #f8f9fa;
@@ -350,29 +381,26 @@
                             <br>
                             <strong>出现时间:</strong> ${formatTime(queryClass.ts_min)} - ${formatTime(queryClass.ts_max)}
                             <br>
-                            <small>${queryClass.fingerprint.substring(0, 100)}...</small>
+                            <small>${queryClass.fingerprint.substring(0, 120)}...</small>
                         </div>
-                        <div>
-                            <strong>执行次数:</strong> ${executionCount} 次
-                            <br>
-                            <strong>平均执行时间:</strong> ${parseFloat(metrics.avg).toFixed(2)} 秒
-                            <br>
-                            <strong>最大执行时间:</strong> ${parseFloat(metrics.max).toFixed(2)} 秒
-                            <br>
-                            <strong>最小执行时间:</strong> ${parseFloat(metrics.min).toFixed(2)} 秒
+                        <div class="query-metrics">
+                            <div><strong>执行次数:</strong> ${executionCount} 次</div>
+                            <div><strong>平均执行时间:</strong> ${parseFloat(metrics.avg).toFixed(2)} 秒</div>
+                            <div><strong>最大执行时间:</strong> ${parseFloat(metrics.max).toFixed(2)} 秒</div>
+                            <div><strong>最小执行时间:</strong> ${parseFloat(metrics.min).toFixed(2)} 秒</div>
                         </div>
                     </div>
                     <div class="query-details-preview">
                         <h4>SQL语句</h4>
                         <div class="metrics-preview">
-                            <div class="metric-item">
+                            <div class="metric-item raw-data-preview">
                                 <pre>${queryClass.example.query}</pre>
                             </div>
                         </div>
                         
                         <h4>原始信息</h4>
                         <div class="metrics-preview">
-                            <div class="metric-item">
+                            <div class="metric-item raw-data-preview">
                                 <pre>${JSON.stringify(queryClass, null, 2)}</pre>
                             </div>
                         </div>
