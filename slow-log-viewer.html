@@ -648,16 +648,12 @@
                     data: queries.map(q => q.index),
                     name: '查询序号',
                     nameLocation: 'middle',
-                    nameGap: 30,
-                    axisLabel: {
-                        interval: 'auto',
-                        rotate: 45
-                    }
+                    nameGap: 30
                 },
                 yAxis: [
                     {
                         type: 'value',
-                        name: '执行时间(秒)',
+                        name: '平均执行时间(秒)',
                         position: 'left',
                         axisLine: {
                             show: true,
