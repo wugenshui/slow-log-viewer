@@ -93,6 +93,7 @@
             padding: 8px;
             border-radius: 4px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: auto;
         }
         .metrics-card {
             background-color: #f8f9fa;
@@ -365,40 +366,9 @@
                         <h4>SQL语句</h4>
                         <div class="sql-preview">${queryClass.example.query}</div>
                         
-                        <h4>性能指标</h4>
+                        <h4>原始信息</h4>
                         <div class="metrics-preview">
                             <div class="metric-item">
-                                <strong>最小执行时间:</strong> ${parseFloat(metrics.min).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>最大执行时间:</strong> ${parseFloat(metrics.max).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>平均执行时间:</strong> ${parseFloat(metrics.avg).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>中位数时间:</strong> ${parseFloat(metrics.median).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>95分位时间:</strong> ${parseFloat(metrics.pct_95).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>标准差:</strong> ${parseFloat(metrics.stddev).toFixed(2)}秒
-                            </div>
-                            <div class="metric-item">
-                                <strong>总执行次数:</strong> ${executionCount}次
-                            </div>
-                            <div class="metric-item">
-                                <strong>数据库:</strong> ${queryClass.metrics?.db?.value || '-'}
-                            </div>
-                            <div class="metric-item">
-                                <strong>用户:</strong> ${queryClass.metrics?.user?.value || '-'}
-                            </div>
-                            <div class="metric-item">
-                                <strong>主机:</strong> ${queryClass.metrics?.host?.value || '-'}
-                            </div>
-                            <div class="metric-item">
-                                <strong>完整查询类信息:</strong>
                                 <pre>${JSON.stringify(queryClass, null, 2)}</pre>
                             </div>
                         </div>
