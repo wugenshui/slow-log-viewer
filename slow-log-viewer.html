@@ -258,7 +258,7 @@
     <script>
         let globalData = null;
         let myChart = null;
-        let filterKeywords = new Set(['select count', 'insert', 'update', 'commit']);
+        let filterKeywords = new Set(['insert', 'update', 'commit', 'mysqldump']);
 
         function handleFile(file) {
             const reader = new FileReader();
@@ -294,7 +294,7 @@
                 .filter(queryClass => {
                     const sql = queryClass.fingerprint.toLowerCase();
                     // 如果包含任意关键词则屏蔽
-                    return !Array.from(filterKeywords).some(keyword => sql.includes(keyword));
+                    return !Array.from(filterKeywords).some(keyword => sql.startsWith(keyword));
                 })
                 .map((queryClass, index) => ({
                     queryClass,
